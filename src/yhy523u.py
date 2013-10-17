@@ -34,11 +34,6 @@ TYPE_MIFARE_4K = 0x0200
 TYPE_MIFARE_DESFIRE = 0x4403
 TYPE_MIFARE_PRO = 0x0800
 
-
-class NoCardException(Exception):
-    def __str__(self):
-        return "No card in field"
-
         
 class YHY523U:
 
@@ -85,7 +80,7 @@ class YHY523U:
             if len(buffer) >= n:
                 return buffer
 
-    def tohex(self, cmd):
+    def to_hex(self, cmd):
         """Return the hexadecimal version of a serial command.
 
         Keyword arguments:
@@ -114,11 +109,10 @@ class YHY523U:
         prev_byte = '\x00'
         while 1:
             cur_byte = self.ser.read(1)
-            print "cur_byte " + cur_byte
             if prev_byte + cur_byte == HEADER:
-                # header found, stop
+                # header found, breaking
                 break
-            prev_byte  = cur_byte
+            prev_byte = cur_byte
 
         length = struct.unpack('<H', self.get_n_bytes(2))[0]
 
@@ -127,7 +121,7 @@ class YHY523U:
         reserved, command = struct.unpack('<HH', packet[:4])
         data = packet[4:-1]
         checksum = ord(packet[-1])
-        # print self.tohex(packet[:-1])
+        # print self.to_hex(packet[:-1])
 
         packet_int = map(ord, packet[:-1])
         checksum_calc = reduce(lambda x,y:  x^y, packet_int  )
@@ -158,11 +152,11 @@ class YHY523U:
             result += hex(ord(b))[2:].zfill(2)
         return result[:count]
 
-    def readSocialCardName(self):
+    def read_social_card_name(self):
         """TO DO"""
         keyA = '\xA0\xA1\xA2\xA3\xA4\xA5'
-        sector = self.readSector(13, keyA) + self.readSector(14, keyA)
-        sector15 = self.readSector(15, keyA)
+        sector = self.read_sector(13, keyA) + self.read_sector(14, keyA)
+        sector15 = self.read_sector(15, keyA)
 
         last_name = sector[1:34].decode('cp1251').strip()
         sex = sector[36]
@@ -181,7 +175,7 @@ class YHY523U:
         """Return the type and the serial of a Mifare card."""
         status, cardtype = self.send_receive(CMD_MIFARE_REQUEST, '\x52') # card_type?
         if status != 0:
-            raise NoCardException
+            raise Exception, "No card found"
 
         status, serial = self.send_receive(CMD_MIFARE_ANTICOLISION, '\x04')
         if status != 0:
@@ -199,7 +193,7 @@ class YHY523U:
         status, data = self.send_receive(CMD_MIFARE_HALT, '')
         return status, data
 
-    def readSector(self, sector=0, keyA='\xff'*5, blocks = (0,1,2,)):
+    def read_sector(self, sector=0, keyA='\xff'*5, blocks = (0,1,2,)):
         """Read a sector of a Mifare card.
 
         Keyword arguments:
@@ -228,22 +222,22 @@ class YHY523U:
             print "sector %d" % sector
             device.select()
             try:
-                print self.tohex(self.readSector(sector, keyA))
+                print self.to_hex(self.read_sector(sector, keyA))
             except:
                 pass
                 #traceback.print_exc()
 
-    def getFWVersion(self):
+    def get_fw_version(self):
         """Return the firmware version of the device."""
         status, data = self.send_receive(CMD_READ_FW_VERSION, '')
         return data
 
-    def getNodeNumber(self):
+    def get_node_number(self):
         """Return the node number of the device."""
         status, data = self.send_receive(CMD_READ_NODE_NUMBER, '')
         return data
 
-    def setNodeNumber(self, number):
+    def set_node_number(self, number):
         """Set the node number of the device.
 
         Keyword arguments:
@@ -266,7 +260,7 @@ class YHY523U:
         else:
             return 0
 
-    def setLed(self, led='off'):
+    def set_led(self, led='off'):
         """Light the LED of the device.
 
         Keyword arguments:
@@ -283,7 +277,7 @@ class YHY523U:
             data = '\x00'
         return self.send_receive(CMD_LED, data)[0] == 0
 
-    def setBaudRate(self, rate=19200):
+    def set_baudrate(self, rate=19200):
         """Set the baud rate of the device.
 
         Keyword arguments:
@@ -305,7 +299,7 @@ class YHY523U:
         return self.send_receive(CMD_SET_BAUDRATE, data)[0] == 0
 
 
-def toMatrixIIISerial(ctype, serial):
+def to_matrix_III_serial(ctype, serial):
     """TO DO"""
     tohex =  lambda serial: ''.join([hex(ord(c))[2:].zfill(2).upper() for c in serial])
     # type_str = ''
@@ -320,9 +314,9 @@ def toMatrixIIISerial(ctype, serial):
         # type_str = ' (0004,88)'
 
     if ctype != TYPE_MIFARE_UL:
-        serial_str =  tohex(serial)
+        serial_str =  to_hex(serial)
     else:
-        serial_str = tohex(serial[3:])  + tohex(serial[:3])
+        serial_str = to_hex(serial[3:])  + to_hex(serial[:3])
     return 'Mifare' + serial_str
 
 
@@ -331,34 +325,40 @@ if __name__ == '__main__':
     # Creating the device
     device = YHY523U('/dev/ttyUSB0', 115200)
     # Lighting of the blue LED
-    device.setLed('blue')
+    #device.set_led('blue')
     
     # Beeping during 10 ms
-    device.beep(10)
+    #device.beep(10)
 
-    #print device.getFWVersion()
-    # device.dump('\xA0\xA1\xA2\xA3\xA4\xA5')
-    # device.dump('\x1a\x98\x2c\x7e\x45\x9a')
-    # device.dump('\x8f\xd0\xa4\xf2\x56\xe9')
-    # device.dump()
+    # Printing the version of the firmware
+    #print device.get_fw_version()
 
+    # Trying to dump the card with different hex A keys
+    #device.dump('\xA0\xA1\xA2\xA3\xA4\xA5')
+    #device.dump('\x8f\xd0\xa4\xf2\x56\xe9')
+    # Trying to dump the card with \xFF\xFF\xFF\xFF\xFF\xFF
+    #device.dump()
 
-    #ctype, serial = device.select()
-    #print ctype, device.tohex(serial)
-    #print toMatrixIIISerial(ctype, serial)
+    # Printing card type and serial id
+    #card_type, serial = device.select()
+    #print "Card type:", card_type, "- Serial number:", device.to_hex(serial)
+    #print to_matrix_III_serial(card_type, serial) #Mifare652D454E
 
-    # print device.dump('\x27\x35\xfc\x18\x18\x07')
-    # print device.tohex(device.readSector(0,'\xff'*6,(1,2)))
+    # Printing the dump of the blocks 0 and 1 of the sector 0
+    # with the A key \xFF\xFF\xFF\xFF\xFF\xFF
+    #print device.to_hex(device.read_sector(0,'\xff'*6,(0,1)))
 
-    #print ",".join(map(unicode,device.readSocialCardName()))
+    print ",".join(map(unicode,device.read_social_card_name())) #errorcode: 23
 
-    # print device.tohex(device.readSector(0,'\xA0\xA1\xA2\xA3\xA4\xA5',(0,1,2,3)))
+    # To be continued...
+
+    # print device.to_hex(device.read_sector(0,'\xA0\xA1\xA2\xA3\xA4\xA5',(0,1,2,3)))
     # print send_receive(self.ser, CMD_WORKING_STATUS, '\xff\xff')
 
     # while 1:
         # try:
             # ctype,serial = select()
-            # print ctype, " SN: ",tohex(serial)
+            # print ctype, " SN: ",to_hex(serial)
         # except KeyboardInterrupt:
             # raise KeyboardInterrupt
         # except:
