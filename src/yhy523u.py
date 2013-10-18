@@ -3,29 +3,52 @@
 import datetime
 import os, sys, struct, serial
 
+# Command header
 HEADER = '\xAA\xBB'
+# \x00\x00 according to API reference but only works with YHY632
+# \xFF\xFF works for both.
 RESERVED = '\xFF\xFF'
 
-# Serial commands
+### Serial commands ###
 CMD_SET_BAUDRATE = 0x0101
 CMD_SET_NODE_NUMBER = 0x0102
 CMD_READ_NODE_NUMBER = 0x0103
 CMD_READ_FW_VERSION = 0x0104
 CMD_BEEP = 0x0106
 CMD_LED = 0x0107
-CMD_WORKING_STATUS = 0x0108 # not used?         # data = 0x41
+CMD_RFU = 0x0108 # Unused according to API reference
+CMD_WORKING_STATUS = 0x0108 # Unused according to API reference
 CMD_ANTENNA_POWER = 0x010C
-CMD_RFU = 0x0108
-CMD_MIFARE_REQUEST = 0x0201 #  request a type of card
-                            # 0x52: request all Type A card In field,
-                            # 0x26: request idle card
-
+# Request a type of card
+#     data = 0x52: request all Type A card In field,
+#     data = 0x26: request idle card
+CMD_MIFARE_REQUEST = 0x0201
 CMD_MIFARE_ANTICOLISION = 0x0202 # 0x04 -> <NUL> (00)     [4cd90080]-cardnumber
-CMD_MIFARE_SELECT = 0x0203 # [4cd90080]  -> 0008
+CMD_MIFARE_SELECT = 0x0203 # [4cd90080] -> 0008
 CMD_MIFARE_HALT = 0x0204
 CMD_MIFARE_AUTH2 = 0x0207 # 60[sector*4][key]
 CMD_MIFARE_READ_BLOCK = 0x0208 #[block_number]
+CMD_MIFARE_WRITE_BLOCK = 0x0209
+CMD_MIFARE_INITVAL = 0x020A
+CMD_MIFARE_READ_BALANCE = 0x020B
+CMD_MIFARE_DECREMENT = 0x020C
+CMD_MIFARE_INCREMENT = 0x020D
 CMD_MIFARE_UL_SELECT = 0x0212
+
+# Error codes
+ERR_BAUD_RATE = 1
+ERR_PORT_OR_DISCONNECT = 2
+ERR_GENERAL = 10
+ERR_UNDEFINED = 11
+ERR_COMMAND_PARAMETER = 12
+ERR_NO_CARD = 13
+ERR_REQUEST_FAILURE = 20
+ERR_RESET_FAILURE = 21
+ERR_AUTHENTICATE_FAILURE = 22
+ERR_READ_BLOCK_FAILURE = 23
+ERR_WRITE_BLOCK_FAILURE = 24
+ERR_READ_ADDRESS_FAILURE = 25
+ERR_WRITE_ADDRESS_FAILURE = 26
 
 # Mifare types
 TYPE_MIFARE_UL = 0x4400
@@ -60,7 +83,7 @@ class YHY523U:
                 body += '\x00'
 
         body_int = map(ord, body)
-        checksum = reduce(lambda x,y:  x^y, body_int  )
+        checksum = reduce(lambda x,y:  x^y, body_int)
 
         return HEADER + struct.pack('<H',length) + body + struct.pack('B', checksum)
 
@@ -105,7 +128,7 @@ class YHY523U:
         """Receive data from the device."""
         buffer = ''
 
-        # receive junk
+        # Receive junk bytes
         prev_byte = '\x00'
         while 1:
             cur_byte = self.ser.read(1)
@@ -115,16 +138,14 @@ class YHY523U:
             prev_byte = cur_byte
 
         length = struct.unpack('<H', self.get_n_bytes(2))[0]
-
         packet = self.get_n_bytes(length, True)
 
         reserved, command = struct.unpack('<HH', packet[:4])
         data = packet[4:-1]
         checksum = ord(packet[-1])
-        # print self.to_hex(packet[:-1])
 
         packet_int = map(ord, packet[:-1])
-        checksum_calc = reduce(lambda x,y:  x^y, packet_int  )
+        checksum_calc = reduce(lambda x,y: x^y, packet_int)
         if data[0] == '\x00':
             if checksum != checksum_calc:
                 raise Exception, "bad checksum"
@@ -144,32 +165,6 @@ class YHY523U:
             raise Exception, "the command in answer is bad!"
         else:
             return ord(data_received[0]), data_received[1:]
-
-    def decode_bcd(self, s, count=None):
-        """TO DO"""
-        result = ''
-        for b in s:
-            result += hex(ord(b))[2:].zfill(2)
-        return result[:count]
-
-    def read_social_card_name(self):
-        """TO DO"""
-        keyA = '\xA0\xA1\xA2\xA3\xA4\xA5'
-        sector = self.read_sector(13, keyA) + self.read_sector(14, keyA)
-        sector15 = self.read_sector(15, keyA)
-
-        last_name = sector[1:34].decode('cp1251').strip()
-        sex = sector[36]
-
-        birthday_str = sector[39:39+8]
-        birthday = datetime.date(int(birthday_str[:4]), int(birthday_str[4:6]), int(birthday_str[6:8]))
-
-        first_name = sector[49:49+46].strip().decode('cp1251').strip()
-
-        card_number = self.decode_bcd(sector15[1:11], 19)
-        card_series = self.decode_bcd(sector15[11:15], 8)
-
-        return last_name, first_name, sex, birthday, card_number, card_series
 
     def select(self):
         """Return the type and the serial of a Mifare card."""
@@ -205,10 +200,10 @@ class YHY523U:
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
         results = ''
         for block in blocks:
-            status, ans = self.send_receive(CMD_MIFARE_READ_BLOCK, chr(sector * 4 + block))
+            status, data = self.send_receive(CMD_MIFARE_READ_BLOCK, chr(sector * 4 + block))
             if status != 0 :
-                raise Exception, "errorcode: %d"%status
-            results += ans
+                raise Exception, "errorcode: %d" % status
+            results += data
         return results
 
     def dump(self, keyA='\xff'*6):
@@ -299,41 +294,22 @@ class YHY523U:
         return self.send_receive(CMD_SET_BAUDRATE, data)[0] == 0
 
 
-def to_matrix_III_serial(ctype, serial):
-    """TO DO"""
-    tohex =  lambda serial: ''.join([hex(ord(c))[2:].zfill(2).upper() for c in serial])
-    # type_str = ''
-    #
-    # if ctype == TYPE_MIFARE_1K:
-        # type_str = '1K (0004,08)'
-    # elif ctype == TYPE_MIFARE_4K:
-        # type_str = '4K (0002,18)'
-    # elif ctype == TYPE_MIFARE_UL:
-        # type_str = 'UL (0144,00)'
-    # else:
-        # type_str = ' (0004,88)'
-
-    if ctype != TYPE_MIFARE_UL:
-        serial_str =  to_hex(serial)
-    else:
-        serial_str = to_hex(serial[3:])  + to_hex(serial[:3])
-    return 'Mifare' + serial_str
-
-
 if __name__ == '__main__':
 
     # Creating the device
     device = YHY523U('/dev/ttyUSB0', 115200)
+
     # Lighting of the blue LED
     #device.set_led('blue')
-    
     # Beeping during 10 ms
     #device.beep(10)
+    # Lighting of both LEDs
+    #device.set_led('both')
 
     # Printing the version of the firmware
     #print device.get_fw_version()
 
-    # Trying to dump the card with different hex A keys
+    # Trying to dump the card with different hex keys A
     #device.dump('\xA0\xA1\xA2\xA3\xA4\xA5')
     #device.dump('\x8f\xd0\xa4\xf2\x56\xe9')
     # Trying to dump the card with \xFF\xFF\xFF\xFF\xFF\xFF
@@ -342,29 +318,27 @@ if __name__ == '__main__':
     # Printing card type and serial id
     #card_type, serial = device.select()
     #print "Card type:", card_type, "- Serial number:", device.to_hex(serial)
-    #print to_matrix_III_serial(card_type, serial) #Mifare652D454E
 
     # Printing the dump of the blocks 0 and 1 of the sector 0
     # with the A key \xFF\xFF\xFF\xFF\xFF\xFF
-    #print device.to_hex(device.read_sector(0,'\xff'*6,(0,1)))
+    #print device.to_hex(device.read_sector(0,'\xff'*6, (0,1)))
 
-    print ",".join(map(unicode,device.read_social_card_name())) #errorcode: 23
+    #print device.to_hex(device.read_sector(0, '\xA0\xA1\xA2\xA3\xA4\xA5', (0,1,2,3))) # needs_digging
+    #print send_receive(self.ser, CMD_WORKING_STATUS, '\xff\xff')
 
-    # To be continued...
+    # Looping reading cards
+    #import time
+    #while 1:
+    #    try:
+    #        card_type, serial = device.select()
+    #        print "Card type:", card_type, "- Serial number:", device.to_hex(serial)
+    #    except KeyboardInterrupt:
+    #        raise KeyboardInterrupt
+    #    except:
+    #        pass
+    #    time.sleep(0.1)
 
-    # print device.to_hex(device.read_sector(0,'\xA0\xA1\xA2\xA3\xA4\xA5',(0,1,2,3)))
-    # print send_receive(self.ser, CMD_WORKING_STATUS, '\xff\xff')
-
-    # while 1:
-        # try:
-            # ctype,serial = select()
-            # print ctype, " SN: ",to_hex(serial)
-        # except KeyboardInterrupt:
-            # raise KeyboardInterrupt
-        # except:
-            # pass
-        # time.sleep(0.0)
-
+    # needs_digging
     # for i in xrange(256):
         # keyA = chr(i)*6
         # sector = 1
@@ -372,3 +346,4 @@ if __name__ == '__main__':
                 # send_receive(self.ser, CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
         # except:
             # pass
+
