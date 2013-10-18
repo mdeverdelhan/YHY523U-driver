@@ -9,7 +9,7 @@ HEADER = '\xAA\xBB'
 # \xFF\xFF works for both.
 RESERVED = '\xFF\xFF'
 
-### Serial commands ###
+# Serial commands
 CMD_SET_BAUDRATE = 0x0101
 CMD_SET_NODE_NUMBER = 0x0102
 CMD_READ_NODE_NUMBER = 0x0103
@@ -34,6 +34,18 @@ CMD_MIFARE_READ_BALANCE = 0x020B
 CMD_MIFARE_DECREMENT = 0x020C
 CMD_MIFARE_INCREMENT = 0x020D
 CMD_MIFARE_UL_SELECT = 0x0212
+
+# Default keys
+DEFAULT_KEYS = [
+    0x000000000000,
+    0xffffffffffff,
+    0xa0a1a2a3a4a5,
+    0xb0b1b2b3b4b5,
+    0x4d3a99c351dd,
+    0x1a982c7e459a,
+    0xd3f7d3f7d3f7,
+    0xaabbccddeeff
+]
 
 # Error codes
 ERR_BAUD_RATE = 1
@@ -206,7 +218,7 @@ class YHY523U:
         results = ''
         for block in blocks:
             status, data = self.send_receive(CMD_MIFARE_READ_BLOCK, chr(sector * 4 + block))
-            if status != 0 :
+            if status != 0:
                 raise Exception, "errorcode: %d" % status
             results += data
         return results
@@ -223,7 +235,7 @@ class YHY523U:
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
         status, result = self.send_receive(CMD_MIFARE_WRITE_BLOCK, chr(sector * 4 + block) + struct.pack('<H', data))
-        if status != 0 :
+        if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
 
@@ -325,7 +337,7 @@ class YHY523U:
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
         status, result = self.send_receive(CMD_MIFARE_INITVAL, chr(sector * 4 + block) + struct.pack('<H', amount))
-        if status != 0 :
+        if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
         
@@ -340,7 +352,7 @@ class YHY523U:
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
         status, result = self.send_receive(CMD_MIFARE_READ_BALANCE, chr(sector * 4 + block))
-        if status != 0 :
+        if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
         
@@ -356,7 +368,7 @@ class YHY523U:
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
         status, result = self.send_receive(CMD_MIFARE_DECREMENT, chr(sector * 4 + block) + struct.pack('<H', amount))
-        if status != 0 :
+        if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
         
@@ -372,11 +384,26 @@ class YHY523U:
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
         status, result = self.send_receive(CMD_MIFARE_INCREMENT, chr(sector * 4 + block) + struct.pack('<H', amount))
-        if status != 0 :
+        if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
 
+    def test_keys(self, keys=DEFAULT_KEYS):
+        """Test an array of potential keys A to find the right one.
 
+        Keyword arguments:
+        keys -- the keys to be tested (default: DEFAULT_KEYS)
+
+        """
+        for key in keys:
+            status, data = self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
+            if status == 0:
+                print "Key A found:", key
+                break
+            else:
+                print "Invalid key A:", key
+    
+    
 if __name__ == '__main__':
 
     # Creating the device
