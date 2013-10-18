@@ -88,7 +88,13 @@ class YHY523U:
         return HEADER + struct.pack('<H',length) + body + struct.pack('B', checksum)
 
     def get_n_bytes(self, n, handle_AA=False):
-        """TO DO"""
+        """Read n bytes from the device.
+
+        Keyword arguments:
+        n -- the number of bytes to read
+        handle_AA -- True to handle \xAA byte differently, False otherwise
+
+        """
         buffer = ''
         while 1:
             received = self.ser.read()
@@ -97,7 +103,6 @@ class YHY523U:
                     received = received.replace('\xAA\x00','\xAA')
                 if received[0] == '\x00' and buffer[-1] == '\xAA':
                     received = received[1:]
-
             buffer += received
 
             if len(buffer) >= n:
@@ -133,7 +138,7 @@ class YHY523U:
         while 1:
             cur_byte = self.ser.read(1)
             if prev_byte + cur_byte == HEADER:
-                # header found, breaking
+                # Header found, breaking
                 break
             prev_byte = cur_byte
 
@@ -188,7 +193,7 @@ class YHY523U:
         status, data = self.send_receive(CMD_MIFARE_HALT, '')
         return status, data
 
-    def read_sector(self, sector=0, keyA='\xff'*5, blocks = (0,1,2,)):
+    def read_sector(self, sector=0, keyA='\xff'*5, blocks=(0,1,2,)):
         """Read a sector of a Mifare card.
 
         Keyword arguments:
@@ -206,6 +211,22 @@ class YHY523U:
             results += data
         return results
 
+    def write_block(self, sector=0, keyA='\xff'*5, block=0, data):
+        """Write in a block of a Mifare card.
+
+        Keyword arguments:
+        sector -- the sector index (default: 0)
+        keyA -- the A key
+        block -- the block to write on in the sector (default: 0)
+        data -- the data string to be written
+
+        """
+        self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
+        status, result = self.send_receive(CMD_MIFARE_WRITE_BLOCK, chr(sector * 4 + block) + struct.pack("<H", data))
+        if status != 0 :
+            raise Exception, "errorcode: %d" % status
+        return result
+
     def dump(self, keyA='\xff'*6):
         """Dump a Mifare card.
 
@@ -213,14 +234,13 @@ class YHY523U:
         keyA -- the A key
 
         """
-        for sector in xrange(0,16):
+        for sector in xrange(0, 16):
             print "sector %d" % sector
             device.select()
             try:
                 print self.to_hex(self.read_sector(sector, keyA))
             except:
                 pass
-                #traceback.print_exc()
 
     def get_fw_version(self):
         """Return the firmware version of the device."""
