@@ -75,7 +75,7 @@ class YHY523U:
         """
         length = 2 + 2 + 1 + len(data)
 
-        body_raw = RESERVED + struct.pack('<H',cmd) + data
+        body_raw = RESERVED + struct.pack('<H', cmd) + data
         body = ''
         for b in body_raw:
             body += b
@@ -85,7 +85,7 @@ class YHY523U:
         body_int = map(ord, body)
         checksum = reduce(lambda x,y:  x^y, body_int)
 
-        return HEADER + struct.pack('<H',length) + body + struct.pack('B', checksum)
+        return HEADER + struct.pack('<H', length) + body + struct.pack('B', checksum)
 
     def get_n_bytes(self, n, handle_AA=False):
         """Read n bytes from the device.
@@ -198,7 +198,7 @@ class YHY523U:
 
         Keyword arguments:
         sector -- the sector index (default: 0)
-        keyA -- the A key
+        keyA -- the key A
         blocks -- the blocks to read in the sector
 
         """
@@ -216,13 +216,13 @@ class YHY523U:
 
         Keyword arguments:
         sector -- the sector index (default: 0)
-        keyA -- the A key
+        keyA -- the key A
         block -- the block to write on in the sector (default: 0)
         data -- the data string to be written
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_WRITE_BLOCK, chr(sector * 4 + block) + struct.pack("<H", data))
+        status, result = self.send_receive(CMD_MIFARE_WRITE_BLOCK, chr(sector * 4 + block) + struct.pack('<H', data))
         if status != 0 :
             raise Exception, "errorcode: %d" % status
         return result
@@ -231,7 +231,7 @@ class YHY523U:
         """Dump a Mifare card.
 
         Keyword arguments:
-        keyA -- the A key
+        keyA -- the key A
 
         """
         for sector in xrange(0, 16):
@@ -259,7 +259,7 @@ class YHY523U:
         number -- the node number
 
         """
-        status, data = self.send_receive(CMD_SET_NODE_NUMBER, struct.pack("<H",number))
+        status, data = self.send_receive(CMD_SET_NODE_NUMBER, struct.pack('<H', number))
         return data
 
     def beep(self, delay=10):
@@ -313,6 +313,69 @@ class YHY523U:
             data = '\x01'
         return self.send_receive(CMD_SET_BAUDRATE, data)[0] == 0
 
+    def init_balance(self, sector=0, keyA='\xff'*5, block=0, amount):
+        """Init a balance in a Mifare card.
+
+        Keyword arguments:
+        sector -- the sector index (default: 0)
+        keyA -- the key A
+        block -- the block to write on in the sector (default: 0)
+        amount -- the initial amount of the balance
+
+        """
+        self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
+        status, result = self.send_receive(CMD_MIFARE_INITVAL, chr(sector * 4 + block) + struct.pack('<H', amount))
+        if status != 0 :
+            raise Exception, "errorcode: %d" % status
+        return result
+        
+    def read_balance(self, sector=0, keyA='\xff'*5, block=0):
+        """Read a balance.
+
+        Keyword arguments:
+        sector -- the sector index (default: 0)
+        keyA -- the key A
+        block -- the block to read in the sector (default: 0)
+
+        """
+        self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
+        status, result = self.send_receive(CMD_MIFARE_READ_BALANCE, chr(sector * 4 + block))
+        if status != 0 :
+            raise Exception, "errorcode: %d" % status
+        return result
+        
+    def decrease_balance(self, sector=0, keyA='\xff'*5, block=0, amount):
+        """Decrease a balance of amount.
+
+        Keyword arguments:
+        sector -- the sector index (default: 0)
+        keyA -- the key A
+        block -- the block to write on in the sector (default: 0)
+        amount -- the decrement amount
+
+        """
+        self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
+        status, result = self.send_receive(CMD_MIFARE_DECREMENT, chr(sector * 4 + block) + struct.pack('<H', amount))
+        if status != 0 :
+            raise Exception, "errorcode: %d" % status
+        return result
+        
+    def increase_balance(self, sector=0, keyA='\xff'*5, block=0, amount):
+        """Increase a balance of amount.
+
+        Keyword arguments:
+        sector -- the sector index (default: 0)
+        keyA -- the key A
+        block -- the block to write on in the sector (default: 0)
+        amount -- the increment amount
+
+        """
+        self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
+        status, result = self.send_receive(CMD_MIFARE_INCREMENT, chr(sector * 4 + block) + struct.pack('<H', amount))
+        if status != 0 :
+            raise Exception, "errorcode: %d" % status
+        return result
+
 
 if __name__ == '__main__':
 
@@ -340,7 +403,7 @@ if __name__ == '__main__':
     #print "Card type:", card_type, "- Serial number:", device.to_hex(serial)
 
     # Printing the dump of the blocks 0 and 1 of the sector 0
-    # with the A key \xFF\xFF\xFF\xFF\xFF\xFF
+    # with the key A \xFF\xFF\xFF\xFF\xFF\xFF
     #print device.to_hex(device.read_sector(0,'\xff'*6, (0,1)))
 
     #print device.to_hex(device.read_sector(0, '\xA0\xA1\xA2\xA3\xA4\xA5', (0,1,2,3))) # needs_digging
