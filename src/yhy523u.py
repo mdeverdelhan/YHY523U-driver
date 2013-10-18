@@ -254,6 +254,16 @@ class YHY523U:
             except:
                 pass
 
+    def dump_access_conditions(self, sector=0, keyA='\xff'*6):
+        """Dump the access conditions (AC) of a sector.
+
+        Keyword arguments:
+        sector -- the sector index (default: 0)
+        keyA -- the key A
+
+        """
+        print "ACs for sector %d:" % sector, "to do"
+
     def get_fw_version(self):
         """Return the firmware version of the device."""
         status, data = self.send_receive(CMD_READ_FW_VERSION, '')
