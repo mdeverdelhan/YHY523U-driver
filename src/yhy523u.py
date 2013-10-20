@@ -36,16 +36,16 @@ CMD_MIFARE_INCREMENT = 0x020D
 CMD_MIFARE_UL_SELECT = 0x0212
 
 # Default keys
-DEFAULT_KEYS = [
-    0x000000000000,
-    0xffffffffffff,
-    0xa0a1a2a3a4a5,
-    0xb0b1b2b3b4b5,
-    0x4d3a99c351dd,
-    0x1a982c7e459a,
-    0xd3f7d3f7d3f7,
-    0xaabbccddeeff
-]
+DEFAULT_KEYS = (
+    '\x00\x00\x00\x00\x00\x00',
+    '\xFF'*6,
+    '\xa0\xa1\xa2\xa3\xa4\xa5',
+    '\xb0\xb1\xb2\xb3\xb4\xb5',
+    '\x4d\x3a\x99\xc3\x51\xdd',
+    '\x1a\x98\x2c\x7e\x45\x9a',
+    '\xd3\xf7\xd3\xf7\xd3\xf7',
+    '\xaa\xbb\xcc\xdd\xee\xff'
+)
 
 # Error codes
 ERR_BAUD_RATE = 1
@@ -120,15 +120,6 @@ class YHY523U:
             if len(buffer) >= n:
                 return buffer
 
-    def to_hex(self, cmd):
-        """Return the hexadecimal version of a serial command.
-
-        Keyword arguments:
-        cmd -- the serial command
-
-        """
-        return ' '.join([hex(ord(c))[2:].zfill(2) for c in cmd])
-
     def send_command(self, cmd, data):
         """Send a serial command to the device.
 
@@ -184,8 +175,11 @@ class YHY523U:
             return ord(data_received[0]), data_received[1:]
 
     def select(self):
-        """Return the type and the serial of a Mifare card."""
-        status, cardtype = self.send_receive(CMD_MIFARE_REQUEST, '\x52') # card_type?
+        """Select a Mifare card. (Needed before any reading/writing operation)
+        Return the type and the serial of a Mifare card.
+
+        """
+        status, card_type = self.send_receive(CMD_MIFARE_REQUEST, '\x52')
         if status != 0:
             raise Exception, "No card found"
 
@@ -193,19 +187,19 @@ class YHY523U:
         if status != 0:
             raise Exception, "Error in anticollision"
 
-        cardtype = struct.unpack('>H', cardtype)[0]
-        if cardtype == TYPE_MIFARE_UL:
+        card_type = struct.unpack('>H', card_type)[0]
+        if card_type == TYPE_MIFARE_UL:
             status, serial = self.send_receive(CMD_MIFARE_UL_SELECT, '')
         else:
             self.send_receive(CMD_MIFARE_SELECT, serial)
-        return cardtype, serial
+        return card_type, serial
 
     def halt(self):
         """Halt the device."""
         status, data = self.send_receive(CMD_MIFARE_HALT, '')
         return status, data
 
-    def read_sector(self, sector=0, keyA='\xff'*5, blocks=(0,1,2,)):
+    def read_sector(self, sector=0, keyA='\xff'*6, blocks=(0,1,2,)):
         """Read a sector of a Mifare card.
 
         Keyword arguments:
@@ -223,7 +217,7 @@ class YHY523U:
             results += data
         return results
 
-    def write_block(self, sector=0, keyA='\xff'*5, block=0, data):
+    def write_block(self, sector=0, keyA='\xff'*6, block=0, data='\x00'*16):
         """Write in a block of a Mifare card.
 
         Keyword arguments:
@@ -246,23 +240,29 @@ class YHY523U:
         keyA -- the key A
 
         """
+        self.select()
         for sector in xrange(0, 16):
             print "sector %d" % sector
-            device.select()
             try:
-                print self.to_hex(self.read_sector(sector, keyA))
+                print to_hex(self.read_sector(sector, keyA))
             except:
                 pass
 
-    def dump_access_conditions(self, sector=0, keyA='\xff'*6):
-        """Dump the access conditions (AC) of a sector.
+    def dump_access_conditions(self, keyA='\xff'*6):
+        """Dump the access conditions (AC) of a Mifare card.
 
         Keyword arguments:
         sector -- the sector index (default: 0)
         keyA -- the key A
 
         """
-        print "ACs for sector %d:" % sector, "to do"
+        self.select()
+        for sector in xrange(0, 16):
+            try:
+                ac = buffer(self.read_sector(sector, keyA, (3,)), 6, 3)
+                print "ACs for sector %d:" % sector, to_hex(ac)
+            except:
+                print "Unable to read ACs for sector %d" % sector
 
     def get_fw_version(self):
         """Return the firmware version of the device."""
@@ -335,14 +335,14 @@ class YHY523U:
             data = '\x01'
         return self.send_receive(CMD_SET_BAUDRATE, data)[0] == 0
 
-    def init_balance(self, sector=0, keyA='\xff'*5, block=0, amount):
+    def init_balance(self, sector=0, keyA='\xff'*6, block=0, amount=1):
         """Init a balance in a Mifare card.
 
         Keyword arguments:
         sector -- the sector index (default: 0)
         keyA -- the key A
         block -- the block to write on in the sector (default: 0)
-        amount -- the initial amount of the balance
+        amount -- the initial amount of the balance (default: 1)
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
@@ -351,7 +351,7 @@ class YHY523U:
             raise Exception, "errorcode: %d" % status
         return result
         
-    def read_balance(self, sector=0, keyA='\xff'*5, block=0):
+    def read_balance(self, sector=0, keyA='\xff'*6, block=0):
         """Read a balance.
 
         Keyword arguments:
@@ -366,14 +366,14 @@ class YHY523U:
             raise Exception, "errorcode: %d" % status
         return result
         
-    def decrease_balance(self, sector=0, keyA='\xff'*5, block=0, amount):
+    def decrease_balance(self, sector=0, keyA='\xff'*6, block=0, amount=1):
         """Decrease a balance of amount.
 
         Keyword arguments:
         sector -- the sector index (default: 0)
         keyA -- the key A
         block -- the block to write on in the sector (default: 0)
-        amount -- the decrement amount
+        amount -- the decrement amount (default: 1)
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
@@ -382,14 +382,14 @@ class YHY523U:
             raise Exception, "errorcode: %d" % status
         return result
         
-    def increase_balance(self, sector=0, keyA='\xff'*5, block=0, amount):
+    def increase_balance(self, sector=0, keyA='\xff'*6, block=0, amount=1):
         """Increase a balance of amount.
 
         Keyword arguments:
         sector -- the sector index (default: 0)
         keyA -- the key A
         block -- the block to write on in the sector (default: 0)
-        amount -- the increment amount
+        amount -- the increment amount (default: 1)
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
@@ -398,26 +398,44 @@ class YHY523U:
             raise Exception, "errorcode: %d" % status
         return result
 
-    def test_keys(self, keys=DEFAULT_KEYS):
-        """Test an array of potential keys A to find the right one.
+    def test_keys(self, sector=0, keys=DEFAULT_KEYS):
+        """Test an array of potential keys to find the right one.
 
         Keyword arguments:
+        sector -- the sector index (default: 0)
         keys -- the keys to be tested (default: DEFAULT_KEYS)
 
         """
+        self.select()
         for key in keys:
-            status, data = self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
+            status = self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + key)
             if status == 0:
-                print "Key A found:", key
+                print "Key A found:", to_hex(key)
                 break
             else:
-                print "Invalid key A:", key
-    
+                print "Invalid key A:", to_hex(key)
+        for key in keys:
+            status = self.send_receive(CMD_MIFARE_AUTH2, '\x61' + chr(sector * 4) + key)
+            if status == 0:
+                print "Key B found:", to_hex(key)
+                break
+            else:
+                print "Invalid key B:", to_hex(key)
+
+
+def to_hex(cmd):
+    """Return the hexadecimal version of a serial command.
+
+    Keyword arguments:
+    cmd -- the serial command
+
+    """
+    return ' '.join([hex(ord(c))[2:].zfill(2) for c in cmd])
     
 if __name__ == '__main__':
 
     # Creating the device
-    device = YHY523U('/dev/ttyUSB0', 115200)
+    device = YHY523U('/dev/ttyUSB2', 115200)
 
     # Lighting of the blue LED
     #device.set_led('blue')
@@ -435,35 +453,38 @@ if __name__ == '__main__':
     # Trying to dump the card with \xFF\xFF\xFF\xFF\xFF\xFF
     #device.dump()
 
+    # Trying to dump the card ACs with \xFF\xFF\xFF\xFF\xFF\xFF
+    #device.dump_access_conditions()
+
     # Printing card type and serial id
     #card_type, serial = device.select()
-    #print "Card type:", card_type, "- Serial number:", device.to_hex(serial)
+    #print "Card type:", card_type, "- Serial number:", to_hex(serial)
 
     # Printing the dump of the blocks 0 and 1 of the sector 0
     # with the key A \xFF\xFF\xFF\xFF\xFF\xFF
-    #print device.to_hex(device.read_sector(0,'\xff'*6, (0,1)))
-
-    #print device.to_hex(device.read_sector(0, '\xA0\xA1\xA2\xA3\xA4\xA5', (0,1,2,3))) # needs_digging
-    #print send_receive(self.ser, CMD_WORKING_STATUS, '\xff\xff')
+    #device.select()
+    #print to_hex(device.read_sector(0,'\xff'*6, (0,1)))
+    # Reading sector: 2, blocks: 0, 1
+    #device.select()
+    #print to_hex(device.read_sector(2, '\xA0\xA1\xA2\xA3\xA4\xA5', (0,1,)))
 
     # Looping reading cards
     #import time
     #while 1:
     #    try:
     #        card_type, serial = device.select()
-    #        print "Card type:", card_type, "- Serial number:", device.to_hex(serial)
+    #        print "Card type:", card_type, "- Serial number:", to_hex(serial)
     #    except KeyboardInterrupt:
     #        raise KeyboardInterrupt
     #    except:
     #        pass
     #    time.sleep(0.1)
 
-    # needs_digging
-    # for i in xrange(256):
-        # keyA = chr(i)*6
-        # sector = 1
-        # try:
-                # send_receive(self.ser, CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        # except:
-            # pass
+    # Reading sector: 4, block: 2
+    #device.select()
+    #print to_hex(device.read_sector(4, '\xFF'*6, (2,)))
+    #device.write_block(4, '\xFF'*6, 2, '\x01\x23\x45')
+    #print to_hex(device.read_sector(4, '\xFF'*6, (2,)))
 
+    # Other tests
+    #print device.send_receive(CMD_WORKING_STATUS, '\x01\x23')
