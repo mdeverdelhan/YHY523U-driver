@@ -71,7 +71,8 @@ TYPE_MIFARE_PRO = 0x0800
 
         
 class YHY523U:
-
+    """Driver for Ehuoyan's YHY523U module"""
+        
     def __init__(self, port='/dev/ttyUSB0', baudrate=115200):
         self.port = port
         self.baudrate = baudrate
