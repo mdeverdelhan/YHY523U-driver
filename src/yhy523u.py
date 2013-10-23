@@ -347,7 +347,7 @@ class YHY523U:
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_INITVAL, chr(sector * 4 + block) + amount)
+        status, result = self.send_receive(CMD_MIFARE_INITVAL, chr(sector * 4 + block) + struct.pack("I", amount))
         if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
@@ -378,7 +378,7 @@ class YHY523U:
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_DECREMENT, chr(sector * 4 + block) + amount)
+        status, result = self.send_receive(CMD_MIFARE_DECREMENT, chr(sector * 4 + block) + struct.pack("I", amount))
         if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
@@ -394,7 +394,7 @@ class YHY523U:
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_INCREMENT, chr(sector * 4 + block) + amount)
+        status, result = self.send_receive(CMD_MIFARE_INCREMENT, chr(sector * 4 + block) + struct.pack("I", amount))
         if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
@@ -491,6 +491,17 @@ if __name__ == '__main__':
     #print to_hex(device.read_sector(4, '\xA0\xA1\xA2\xA3\xA4\xA5', (2, 3)))
     #device.write_block(4, '\xA0\xA1\xA2\xA3\xA4\xA5', 2, '\x00'*16)
     #print to_hex(device.read_sector(4, '\xA0\xA1\xA2\xA3\xA4\xA5', (2, 3)))
+
+    # Read-write-read-write-read-write-read
+    # Playing with a balance on sector: 7, block: 1
+    #device.select()
+    #print "Balance:", struct.unpack("4b", device.read_balance(7, '\xff'*6, 1))
+    #device.init_balance(7, '\xff'*6, 1, 42)
+    #print "Balance:", struct.unpack("4b", device.read_balance(7, '\xff'*6, 1))
+    #device.decrease_balance(7, '\xff'*6, 1, 3)
+    #print "Balance:", struct.unpack("4b", device.read_balance(7, '\xff'*6, 1))
+    #device.increase_balance(7, '\xff'*6, 1, 2)
+    #print "Balance:", struct.unpack("4b", device.read_balance(7, '\xff'*6, 1))
 
     # Testing a set of default keys
     #device.test_keys()
