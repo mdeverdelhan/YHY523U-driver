@@ -229,7 +229,7 @@ class YHY523U:
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_WRITE_BLOCK, chr(sector * 4 + block) + struct.pack('<H', data))
+        status, result = self.send_receive(CMD_MIFARE_WRITE_BLOCK, chr(sector * 4 + block) + data)
         if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
@@ -347,7 +347,7 @@ class YHY523U:
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_INITVAL, chr(sector * 4 + block) + struct.pack('<H', amount))
+        status, result = self.send_receive(CMD_MIFARE_INITVAL, chr(sector * 4 + block) + amount)
         if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
@@ -378,7 +378,7 @@ class YHY523U:
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_DECREMENT, chr(sector * 4 + block) + struct.pack('<H', amount))
+        status, result = self.send_receive(CMD_MIFARE_DECREMENT, chr(sector * 4 + block) + amount)
         if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
@@ -394,7 +394,7 @@ class YHY523U:
 
         """
         self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + keyA)
-        status, result = self.send_receive(CMD_MIFARE_INCREMENT, chr(sector * 4 + block) + struct.pack('<H', amount))
+        status, result = self.send_receive(CMD_MIFARE_INCREMENT, chr(sector * 4 + block) + amount)
         if status != 0:
             raise Exception, "errorcode: %d" % status
         return result
@@ -483,12 +483,17 @@ if __name__ == '__main__':
     #        pass
     #    time.sleep(0.1)
 
-    # Reading sector: 4, block: 2
+    # Read-write-read-write-read
+    # Reading sector: 4, blocks: 2, 3
     #device.select()
-    #print to_hex(device.read_sector(4, '\xFF'*6, (2,)))
-    #device.write_block(4, '\xFF'*6, 2, '\x01\x23\x45')
-    #print to_hex(device.read_sector(4, '\xFF'*6, (2,)))
+    #print to_hex(device.read_sector(4, '\xA0\xA1\xA2\xA3\xA4\xA5', (2, 3)))
+    #device.write_block(4, '\xA0\xA1\xA2\xA3\xA4\xA5', 2, '\x01\x23\x45\x67'*4)
+    #print to_hex(device.read_sector(4, '\xA0\xA1\xA2\xA3\xA4\xA5', (2, 3)))
+    #device.write_block(4, '\xA0\xA1\xA2\xA3\xA4\xA5', 2, '\x00'*16)
+    #print to_hex(device.read_sector(4, '\xA0\xA1\xA2\xA3\xA4\xA5', (2, 3)))
 
-    device.test_keys()
+    # Testing a set of default keys
+    #device.test_keys()
+
     # Other tests
     #print device.send_receive(CMD_WORKING_STATUS, '\x01\x23')
