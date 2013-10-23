@@ -38,11 +38,11 @@ CMD_MIFARE_UL_SELECT = 0x0212
 # Default keys
 DEFAULT_KEYS = (
     '\x00\x00\x00\x00\x00\x00',
-    '\xFF'*6,
     '\xa0\xa1\xa2\xa3\xa4\xa5',
     '\xb0\xb1\xb2\xb3\xb4\xb5',
     '\x4d\x3a\x99\xc3\x51\xdd',
     '\x1a\x98\x2c\x7e\x45\x9a',
+    '\xFF'*6,
     '\xd3\xf7\xd3\xf7\xd3\xf7',
     '\xaa\xbb\xcc\xdd\xee\xff'
 )
@@ -407,16 +407,18 @@ class YHY523U:
         keys -- the keys to be tested (default: DEFAULT_KEYS)
 
         """
-        self.select()
         for key in keys:
-            status = self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + key)
+            self.select()
+            status, data = self.send_receive(CMD_MIFARE_AUTH2, '\x60' + chr(sector * 4) + key)
             if status == 0:
                 print "Key A found:", to_hex(key)
                 break
             else:
                 print "Invalid key A:", to_hex(key)
+
         for key in keys:
-            status = self.send_receive(CMD_MIFARE_AUTH2, '\x61' + chr(sector * 4) + key)
+            self.select()
+            status, data = self.send_receive(CMD_MIFARE_AUTH2, '\x61' + chr(sector * 4) + key)
             if status == 0:
                 print "Key B found:", to_hex(key)
                 break
@@ -436,7 +438,7 @@ def to_hex(cmd):
 if __name__ == '__main__':
 
     # Creating the device
-    device = YHY523U('/dev/ttyUSB2', 115200)
+    device = YHY523U('/dev/ttyUSB0', 115200)
 
     # Lighting of the blue LED
     #device.set_led('blue')
@@ -487,5 +489,6 @@ if __name__ == '__main__':
     #device.write_block(4, '\xFF'*6, 2, '\x01\x23\x45')
     #print to_hex(device.read_sector(4, '\xFF'*6, (2,)))
 
+    device.test_keys()
     # Other tests
     #print device.send_receive(CMD_WORKING_STATUS, '\x01\x23')
