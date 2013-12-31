@@ -45,6 +45,22 @@ This driver also works with the [Ehuoyan's YHY632 module](http://www.ehuoyan.com
     apt-get install jpnevulator
     jpnevulator --ascii --timing-print --tty "/dev/ttyUSB0" --read
 
+### More resources
+
+* http://www.doc.ic.ac.uk/~mgv98/MIFARE_files/report.pdf
+* http://www.cs.ru.nl/~flaviog/publications/Talk.Mifare.pdf
+* http://nickholdren.com/wp-content/uploads/2009/07/capstone.pdf
+* https://har2009.org/program/attachments/123_%5BHAR2009%5D-Roel.Verdult-Classic.Mistakes.pdf
+* http://www.nethemba.com/mifare-classic-slides.pdf
+* http://code.google.com/p/mfcuk/
+* http://code.google.com/p/crapto1/
+* http://code.google.com/p/mfoc/
+* http://www.nicolascourtois.com/MifareClassicHack.pdf
+* http://ieatbinary.com/2009/02/11/reading-mifare-1k-card-using-java-in-linux/
+* https://android.googlesource.com/platform/frameworks/base.git/+/android-4.2.2_r1/core/java/android/nfc/tech/MifareClassic.java
+* https://github.com/ikarus23/MifareClassicTool
+* https://github.com/dpavlin/perl-Mifare-MAD
+
 ### Credits
 
 Strongly inspired by [the work of Evgeny Boger](http://code.google.com/p/yhy632/).
