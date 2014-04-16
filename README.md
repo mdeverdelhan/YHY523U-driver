@@ -4,7 +4,7 @@ Here is a Ehuoyan's YHY523U module (or YHY632, see below) python driver for Linu
 
 ## About the YHY523U module
 
-![YHY523U RFID module](https://raw.github.com/mdeverdelhan/YHY523U-driver/master/res/yhy523u_module.png)
+![YHY523U RFID module](res/yhy523u_module.png?raw=true)
 
 The [YHY523U RFID module](http://ehuoyan.com/english/products_display.asp?pid=28&id=232&proid=153) is made by [Ehuoyan Technology Co., Ltd.](http://ehuoyan.com) (Beijing, China).
 
