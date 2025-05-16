@@ -65,6 +65,4 @@ This driver also works with the [Ehuoyan's YHY632 module](http://www.ehuoyan.com
 
 Strongly inspired by [the work of Evgeny Boger](http://code.google.com/p/yhy632/).
 
-### Donations
 
-Bitcoin address: 13BMqpqbzJ62LjMWcPGWrTrdocvGqifdJ3
